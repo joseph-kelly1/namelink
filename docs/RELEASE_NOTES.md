@@ -1,20 +1,25 @@
-# NameLink 0.1.0-alpha.1 — release-note draft
+# NameLink 0.1.0-alpha.2 — release-note draft
 
 Original server-only Fabric nickname mod for Minecraft Java 26.3. Admins assign
 recognizable plain names without changing anyone's account or UUID. Clients need
 no mod or resource pack.
+
+## Changes since 0.1.0-alpha.1
+
+`/namelink help` now requires the same admin permission as `/nick` and is hidden
+from ordinary players' command list. `/whois` remains available to everyone.
 
 ## Requirements
 
 - Minecraft Java **26.3** and **Java 25**
 - Fabric Loader **0.20.1+**
 - Fabric API **0.165.0+26.3** tested
-- Install **`namelink-0.1.0-alpha.1.jar`** in the server `mods/` directory
+- Install **`namelink-0.1.0-alpha.2.jar`** in the server `mods/` directory
 - Do not install the sources jar or another nickname mod
 
 ## Included
 
-- Admin-only `/nick set`, `/nick clear`, `/nick list`; public `/whois` and help.
+- Admin-only `/nick set`, `/nick clear`, `/nick list`, and `/namelink help`; public `/whois`.
 - Plain nicknames in chat, Tab, and per-viewer overhead text displays using vanilla
   packets; no authenticated GameProfile or signed message-body replacement.
 - Native operator level 2 defaults; optional Fabric permission API v1 admin node.
@@ -62,5 +67,5 @@ replacement does not make all Minecraft world/player saves one transaction. Old
 usernames and retired nicknames are permanently reserved but do not redirect;
 malformed/incompatible data requires repair or a backup, not silent reset.
 
-MIT © 2026 Joseph Kelly. This file is a draft only. No public GitHub release,
-Modrinth publication or live-server deployment has been performed.
+MIT © 2026 Joseph Kelly. This update is a draft; alpha.1 remains available on GitHub.
+No alpha.2 release, Modrinth publication or live-server deployment has been performed.

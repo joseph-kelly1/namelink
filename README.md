@@ -15,7 +15,7 @@ and UUID lookups, not Minecraft accounts.
 2. Use **Java 25**, Minecraft **26.3**, Fabric Loader **0.20.1+**, and Fabric API
    **0.165.0+26.3** (tested versions). In DiscoPanel, select a Java 25 runtime
    and the matching Fabric server installation.
-3. Put `namelink-0.1.0-alpha.1.jar` in the server's `mods/` directory alongside
+3. Put `namelink-0.1.0-alpha.2.jar` in the server's `mods/` directory alongside
    Fabric API. Do not install the sources jar or another nickname mod.
 4. Restart. In the console: `nick set BlockMaster42 Alex`. The account must be
    known from a previous join, available whitelist record, or profile cache.
@@ -32,7 +32,7 @@ an installation acceptance check.
 | `/nick clear <player>` | Admin | Remove display nickname; identity and trust stay unchanged |
 | `/nick list` | Admin | Privately list account names and assignments |
 | `/whois <nickname-or-username>` | Everyone | Privately show current account name and nickname |
-| `/namelink help` | Everyone | Relevant commands and explanation |
+| `/namelink help` | Admin | Relevant commands and explanation |
 
 Default admin permission is native operator level **2** (gamemaster) or higher;
 server console works. Optional permission providers implementing Fabric's
@@ -184,7 +184,7 @@ The build includes JUnit and dedicated-server game tests. Optional-mod tests onl
 exercise their integration paths when those mods are present; the baseline verifies
 successful operation without them. `test-mods/`, generated worlds, logs, and build
 outputs are ignored. Downloads are checksum verified. No integration mods are
-packaged in NameLink. Installable output: `build/libs/namelink-0.1.0-alpha.1.jar`.
+packaged in NameLink. Installable output: `build/libs/namelink-0.1.0-alpha.2.jar`.
 
 See [test evidence and two-player checklist](docs/TESTING.md),
 [compatibility matrix](docs/COMPATIBILITY.md), [architecture/API](docs/ARCHITECTURE.md),

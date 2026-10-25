@@ -22,7 +22,7 @@ def download(url, target):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--jar", type=Path, default=ROOT / "build/libs/namelink-0.1.0-alpha.1.jar")
+    parser.add_argument("--jar", type=Path, default=ROOT / "build/libs/namelink-0.1.0-alpha.2.jar")
     parser.add_argument("--fabric-api", type=Path, required=True)
     parser.add_argument("--launcher", type=Path, help="Optional existing official Fabric server launcher (26.3/0.20.1)")
     parser.add_argument("--mod", type=Path, action="append", default=[], help="Extra optional runtime mod; repeat as needed")

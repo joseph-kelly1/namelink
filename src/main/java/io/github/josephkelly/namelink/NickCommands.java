@@ -36,9 +36,9 @@ public final class NickCommands {
                     var i = n.state.identity(id);
                     return reply(c, i == null ? "Player identity not yet recorded." : "Minecraft username: " + i.username() + "; nickname: " + (i.nickname() == null ? "none" : i.nickname()) + ".");
                 })));
-        d.register(Commands.literal("namelink").then(Commands.literal("help").executes(c -> reply(c,
+        d.register(Commands.literal("namelink").requires(NickCommands::admin).then(Commands.literal("help").executes(c -> reply(c,
                 "NameLink: /whois <nickname-or-username>. Nicknames work in supported player arguments; real usernames still work. "
-                + "Your account, skin and data stay unchanged. " + (admin(c.getSource()) ? "/nick set <player> <nickname>; /nick clear <player>; /nick list. Names: 3–16 ASCII letters, digits, underscores." : "Ask an admin to assign or change your nickname.")))));
+                + "Your account, skin and data stay unchanged. " + "/nick set <player> <nickname>; /nick clear <player>; /nick list. Names: 3–16 ASCII letters, digits, underscores."))));
     }
     private static com.mojang.brigadier.builder.RequiredArgumentBuilder<CommandSourceStack,String> player() {
         return Commands.argument("player",StringArgumentType.word()).suggests((c,b) -> SharedSuggestionProvider.suggest(suggestions(c.getSource()),b));

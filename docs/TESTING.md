@@ -104,9 +104,10 @@ For rollback and uninstallation, stop and restore the complete staging backup.
 1. **Install/login:** Both accounts join with Fabric API and NameLink server-side
    only. Confirm skins, inventories, advancements, whitelist and UUIDs match before
    installation. No client installation/resource-pack prompt should appear.
-2. **Permissions/private output:** B cannot set, clear or list nicknames. Both can
-   use help/whois. A's `/nick list` and command feedback appear only for A; console
-   commands work. If using a permission provider, separately verify explicit grant
+2. **Permissions/private output:** B cannot set, clear or list nicknames or use
+   `/namelink help`. Both can use `/whois`; A and the console can use
+   `/namelink help`. A's `/nick list` and command feedback appear only for A;
+   console commands work. If using a permission provider, separately verify explicit grant
    and denial of Fabric API v1 node `namelink:admin` and refresh command permissions.
 3. **Assignment/identity:** Assign A → Alex. A sends a signed chat message. B sees
    Alex in chat and Tab with A's original skin. Chat hover/click still identifies

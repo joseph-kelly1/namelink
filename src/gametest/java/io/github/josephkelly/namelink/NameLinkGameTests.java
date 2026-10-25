@@ -83,7 +83,11 @@ public final class NameLinkGameTests {
             execute(command,owner.source(true));
             check(h,alias.equals(NameLink.active.nickname(other.player.getUUID())),"Admin set failed");
             other.packets.clear(); execute("nick list",owner.source(true));
-            check(h,other.packets.isEmpty(),"Admin list leaked to another player");
+            check(h,execute("namelink help",owner.source(true))==1,"Admin help failed");
+            check(h,other.packets.isEmpty(),"Admin list or help leaked to another player");
+            try { execute("namelink help",owner.source(false)); throw new AssertionError("Nonadmin help accepted"); } catch(com.mojang.brigadier.exceptions.CommandSyntaxException expected) {}
+            check(h,suggestions("namelink ",owner.source(true)).contains("help"),"Admin help completion missing");
+            check(h,execute("namelink help",NameLink.active.server.createCommandSourceStack())==1,"Console help failed");
             execute("whois "+alias,owner.source(false));
             try { execute("nick clear "+alias,owner.source(false)); throw new AssertionError("Nonadmin clear accepted"); } catch(com.mojang.brigadier.exceptions.CommandSyntaxException expected) {}
             try { execute("nick list",owner.source(false)); throw new AssertionError("Nonadmin list accepted"); } catch(com.mojang.brigadier.exceptions.CommandSyntaxException expected) {}
@@ -158,6 +162,8 @@ public final class NameLinkGameTests {
             var targets=(com.mojang.brigadier.tree.ArgumentCommandNode<CommandSourceStack,?>)tree.getChild("msg").getChild("targets");
             check(h,targets.getCustomSuggestions()!=null && net.minecraft.commands.synchronization.SuggestionProviders.getName(targets.getCustomSuggestions()).toString().equals("minecraft:ask_server"),"Vanilla client would not request nickname completion");
             check(h,tree.getChild("nick")==null,"Restricted command leaked into ordinary player tree");
+            check(h,tree.getChild("namelink")==null,"Admin help leaked into ordinary player tree");
+            check(h,tree.getChild("whois")!=null,"Public whois missing from ordinary player tree");
         } h.succeed();
     }
     @GameTest public void loginAndWhitelistConflictsRevokeAliases(GameTestHelper h) throws Exception {
