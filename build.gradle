@@ -1,0 +1,53 @@
+plugins { id 'net.fabricmc.fabric-loom' version "${loom_version}" }
+version = project.mod_version
+group = project.maven_group
+repositories { mavenCentral() }
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+    testImplementation platform('org.junit:junit-bom:5.14.0')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(25)
+    withSourcesJar()
+}
+tasks.withType(JavaCompile).configureEach { options.release = 25 }
+test { useJUnitPlatform() }
+processResources {
+    inputs.property 'version', project.version
+    filesMatching('fabric.mod.json') { expand version: project.version }
+}
+tasks.withType(AbstractArchiveTask).configureEach {
+    preserveFileTimestamps = false
+    reproducibleFileOrder = true
+}
+tasks.withType(Jar).configureEach {
+    from('LICENSE') { rename { 'LICENSE_namelink' } }
+    from('THIRD_PARTY_NOTICES.md')
+}
+fabricApi {
+    configureTests {
+        createSourceSet = true
+        modId = 'namelink-test'
+        enableGameTests = true
+        enableClientGameTests = false
+        eula = true
+    }
+}
+if (providers.gradleProperty('withIntegrations').isPresent()) {
+    repositories { maven { url = 'https://api.modrinth.com/maven' } }
+    ['quicklock-0.1.0-alpha.1.jar', 'blossom-tpa-2.2.15+26.3.jar', 'blossom-lib-2.6.1+26.3.jar'].each { name ->
+        if (!file("test-mods/${name}").isFile()) throw new GradleException('Run python3 scripts/fetch-test-mods.py before -PwithIntegrations')
+    }
+    dependencies {
+        gametestImplementation files('test-mods/blossom-tpa-2.2.15+26.3.jar', 'test-mods/blossom-lib-2.6.1+26.3.jar')
+        gametestImplementation files('test-mods/quicklock-0.1.0-alpha.1.jar')
+    }
+}
+if (providers.gradleProperty('withLithium').isPresent()) {
+    repositories { maven { url = 'https://api.modrinth.com/maven' } }
+    dependencies { gametestImplementation 'maven.modrinth:lithium:mc26.3-0.26.2-fabric' }
+}

@@ -1,0 +1,8 @@
+{
+  "required": true,
+  "package": "io.github.josephkelly.namelink.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "plugin": "io.github.josephkelly.namelink.compat.CompatibilityPlugin",
+  "mixins": ["CommandsMixin", "PlayerDisplayMixin", "TabDisplayMixin", "EntityArgumentMixin", "EntitySelectorMixin", "GameProfileArgumentMixin", "ProfileCacheAccessor", "ProfileInfoAccessor", "ProfileCacheMixin", "TeamPacketAccessor", "PacketListenerMixin", "QuickLockCommandsMixin"],
+  "injectors": {"defaultRequire": 1}
+}

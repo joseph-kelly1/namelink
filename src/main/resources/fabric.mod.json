@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "id": "namelink",
+  "version": "${version}",
+  "name": "NameLink",
+  "description": "UUID-safe server nicknames and player-target aliases for vanilla clients.",
+  "authors": ["Joseph Kelly"],
+  "contact": {"sources": "https://github.com/joseph-kelly1/namelink", "issues": "https://github.com/joseph-kelly1/namelink/issues"},
+  "license": "MIT",
+  "environment": "server",
+  "entrypoints": {"main": ["io.github.josephkelly.namelink.NameLink"]},
+  "mixins": ["namelink.mixins.json"],
+  "depends": {"fabricloader": ">=0.20.1", "minecraft": "26.3", "java": ">=25", "fabric-api": ">=0.165.0"}
+}
