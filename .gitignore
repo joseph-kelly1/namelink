@@ -7,3 +7,6 @@ test-mods/
 .DS_Store
 .idea/
 *.iml
+
+__pycache__/
+*.pyc

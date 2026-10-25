@@ -39,6 +39,10 @@ public final class NameLink implements ModInitializer {
                         var p = ((ProfileInfoAccessor) value).namelink$identity();
                         state.observe(p.id(), p.name(), false);
                     }
+                    for (Object value : cache.namelink$namedProfiles().values()) {
+                        var p = ((ProfileInfoAccessor) value).namelink$identity();
+                        state.observe(p.id(), p.name(), false);
+                    }
                 }
                 scanWhitelist();
                 store.save(state);
@@ -46,7 +50,10 @@ public final class NameLink implements ModInitializer {
                 LOGGER.info("NameLink loaded {} identities; authentication profiles remain unchanged", state.identities().size());
             } catch (Exception e) { active = null; throw new IllegalStateException("NameLink cannot safely load identity data; refusing startup", e); }
         });
-        ServerLifecycleEvents.SERVER_STARTED.register(s -> { scanWhitelist(); notices(); });
+        ServerLifecycleEvents.SERVER_STARTED.register(s -> {
+            io.github.josephkelly.namelink.compat.QuickLockBridge.importIdentities(this);
+            scanWhitelist(); notices();
+        });
         ServerPlayConnectionEvents.JOIN.register((handler, sender, s) -> {
             observe(handler.player.nameAndId(), true);
             labels.join(handler.player);
@@ -80,7 +87,7 @@ public final class NameLink implements ModInitializer {
             // Real usernames must win in memory even if disk fails; stop rather than continue with divergent data.
             state = next;
             try { store.save(next); }
-            catch (IOException e) { throw new IllegalStateException("Cannot persist NameLink identity update; stop and repair storage", e); }
+            catch (IOException e) { server.halt(false); throw new IllegalStateException("Cannot persist NameLink identity update; stop and repair storage", e); }
             notices(); refreshTab();
         }
     }

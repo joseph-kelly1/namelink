@@ -15,6 +15,13 @@ class NicknameStateTest {
         for(String good:List.of("Alex","a_3","123","Abcdefghijklmnop")) assertTrue(NicknameState.valid(good));
         for(String bad:List.of("ab","abcdefghijklmnopq","Álex","A lex","§Alex","@a","@p[name=Alex]",alex.toString(),"","Alex/","Alex\n")) assertFalse(NicknameState.valid(bad),bad);
     }
+    @Test void legacyShortAccountNamesCanReceiveNicknames() {
+        UUID legacy=UUID.randomUUID();state.observe(legacy,"ab",true);state.assign(legacy,"Legacy");
+        assertEquals(legacy,state.resolve("ab"));assertEquals(legacy,state.resolve("Legacy"));
+    }
+    @Test void copyPreservesPendingStartupConflictNotices() {
+        state.assign(alex,"Alex");state.observe(ben,"Alex",true);assertEquals(1,state.copy().drainNotices().size());
+    }
     @Test void ownUsernameRejected() { assertThrows(IllegalArgumentException.class,()->state.assign(alex,"blockmaster42")); }
     @Test void otherUsernameRejected() { assertThrows(IllegalArgumentException.class,()->state.assign(alex,"vOLLEYbEN")); }
     @Test void caseInsensitiveUniqueness() { state.assign(alex,"Alex"); assertThrows(IllegalArgumentException.class,()->state.assign(ben,"aLEX")); }
@@ -51,6 +58,25 @@ class NicknameStateTest {
         Path path=dir.resolve("namelink.json"); var store=new StateStore(path);
         for(String bad:List.of("", "{", "null", "{}", "{\"version\":2}","{\"version\":1,\"identities\":[],\"reservations\":{\"Alex\":\"bad\"}}")) {
             Files.writeString(path,bad); assertThrows(java.io.IOException.class,store::load); assertEquals(bad,Files.readString(path));
+        }
+    }
+    @Test void duplicateJsonKeysAndLenientSyntaxAreRejected() throws Exception {
+        Path path=dir.resolve("state.json");var store=new StateStore(path);
+        for(String text:List.of("{\"version\":1,\"version\":1,\"identities\":[],\"reservations\":{}}", "{version:1,identities:[],reservations:{}}", "{\"version\":1,\"identities\":[],\"reservations\":{}} trailing")) {
+            Files.writeString(path,text);assertThrows(java.io.IOException.class,store::load);assertEquals(text,Files.readString(path));
+        }
+    }
+    @Test void schemaTypesAndUnknownFieldsAreRejected() throws Exception {
+        Path path=dir.resolve("state.json");var store=new StateStore(path);store.save(state);String valid=Files.readString(path);
+        for(String text:List.of(valid.replace("\"version\": 1","\"version\": \"1\""),valid.replace("\"BlockMaster42\"","123"),valid.replace("\"version\": 1","\"unknown\": true, \"version\": 1"))) {
+            Files.writeString(path,text);assertThrows(java.io.IOException.class,store::load);
+        }
+    }
+    @Test void configDefaultsAndMalformedFlags() throws Exception {
+        Path path=dir.resolve("config/namelink.json");var defaults=NameLinkConfig.load(path);
+        assertTrue(defaults.chat() && defaults.tab() && defaults.overhead() && defaults.vanillaPlayerArguments() && defaults.quickLock());
+        for(String text:List.of("{\"chat\":true,\"chat\":false}","{\"chat\":\"true\"}","{\"unknown\":true}")) {
+            Files.writeString(path,text);assertThrows(java.io.IOException.class,()->NameLinkConfig.load(path));
         }
     }
     @Test void invalidRecordsAndDuplicateAssignmentsFail() {

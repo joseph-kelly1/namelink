@@ -209,8 +209,41 @@ public final class NameLinkGameTests {
             } finally { board.removePlayerTeam(team); }
         } h.succeed();
     }
+    @GameTest public void profileCacheUpdatesReconcileUsernameConflicts(GameTestHelper h) throws Exception {
+        try(Scope s=new Scope();Client c=new Client(h)) {
+            var n=NameLink.active;String alias=unique("Nick");n.assign(c.player.getUUID(),alias);UUID cached=UUID.randomUUID();
+            // GameTestServer supplies a mock resolver. Temporarily use the actual cache implementation to test its mixin.
+            var oldServices=n.server.services();var servicesField=net.minecraft.server.MinecraftServer.class.getDeclaredField("services");servicesField.setAccessible(true);
+            var cacheFile=java.nio.file.Files.createTempFile("namelink-cache-test-",".json");
+            var realCache=new CachedUserNameToIdResolver(null,cacheFile.toFile());
+            try {
+                servicesField.set(n.server,new net.minecraft.server.Services(oldServices.sessionService(),oldServices.servicesKeySet(),oldServices.profileRepository(),realCache,oldServices.profileResolver()));
+                realCache.add(new NameAndId(cached,alias));
+            } finally { servicesField.set(n.server,oldServices);java.nio.file.Files.deleteIfExists(cacheFile); }
+            check(h,n.nickname(c.player.getUUID())==null && cached.equals(n.resolve(alias)),"Profile-cache identity did not override nickname");
+            check(h,c.player.getTabListDisplayName()==null,"Collision did not restore ordinary Tab name");
+        } h.succeed();
+    }
+    @GameTest public void overheadPrivacyDistanceDeathDimensionAndShutdown(GameTestHelper h) throws Exception {
+        try(Scope s=new Scope();Client viewer=new Client(h);Client target=new Client(h)) {
+            var n=NameLink.active; n.assign(target.player.getUUID(),unique("Nick"));
+            var base=h.absolutePos(new BlockPos(2,103,2));viewer.player.setPos(Vec3.atCenterOf(base));target.player.setPos(Vec3.atCenterOf(base).add(20,0,0));n.labels.track(viewer.player,target.player);
+            n.labels.tick(n);check(h,n.labels.labelCount()==1,"Ordinary in-range label missing; labels="+n.labels.labelCount()+" LOS="+viewer.player.hasLineOfSight(target.player)+" distance="+viewer.player.distanceToSqr(target.player));
+            target.player.setPose(Pose.CROUCHING);n.labels.tick(n);check(h,n.labels.labelCount()==0,"Crouching label leaked beyond 16 blocks");
+            target.player.setPose(Pose.STANDING);n.labels.tick(n);check(h,n.labels.labelCount()==1,"Standing label not restored");
+            var wall=base.offset(10,0,0);for(int y=0;y<4;y++) h.getLevel().setBlockAndUpdate(wall.above(y),Blocks.STONE.defaultBlockState());
+            check(h,!viewer.player.hasLineOfSight(target.player),"Wall fixture did not block eye ray");
+            n.labels.tick(n);check(h,n.labels.labelCount()==0,"Label leaked through wall");for(int y=0;y<4;y++) h.getLevel().setBlockAndUpdate(wall.above(y),Blocks.AIR.defaultBlockState());
+            target.player.setPos(Vec3.atCenterOf(base).add(40,0,0));n.labels.tick(n);check(h,n.labels.labelCount()==0,"Label leaked beyond 32 blocks");
+            target.player.setPos(Vec3.atCenterOf(base).add(2,0,0));n.labels.tick(n);target.player.setHealth(0);n.labels.tick(n);check(h,n.labels.labelCount()==0,"Dead subject retained label");target.player.setHealth(20);
+            target.player.gameMode.changeGameModeForPlayer(GameType.SPECTATOR);n.labels.tick(n);check(h,n.labels.labelCount()==0,"Spectator retained label");target.player.gameMode.changeGameModeForPlayer(GameType.SURVIVAL);
+            n.labels.tick(n);check(h,n.labels.labelCount()==1,"Live subject label missing");
+            target.player.setServerLevel(n.server.getLevel(net.minecraft.world.level.Level.NETHER));n.labels.tick(n);check(h,n.labels.labelCount()==0,"Cross-dimension label leaked");target.player.setServerLevel(h.getLevel());
+            n.labels.tick(n);viewer.packets.clear();n.labels.stop(n);check(h,n.labels.labelCount()==0 && viewer.packets.stream().anyMatch(p->p instanceof ClientboundRemoveEntitiesPacket),"Shutdown leaked label");
+        } h.succeed();
+    }
     @GameTest public void requiredBlossomCommandArguments(GameTestHelper h) throws Exception {
-        if(!FabricLoader.getInstance().isModLoaded("blossom-tpa")) { h.succeed(); return; }
+        if(!FabricLoader.getInstance().isModLoaded("blossom-tpa")) { NameLink.LOGGER.info("Blossom integration assertions not exercised: optional mod absent"); h.succeed(); return; }
         try(Scope s=new Scope();Client initiator=new Client(h);Client receiver=new Client(h)) {
             var n=NameLink.active;String alias=unique("Nick"),senderAlias=unique("Nick");n.assign(receiver.player.getUUID(),alias);n.assign(initiator.player.getUUID(),senderAlias);
             for(String root:List.of("tpa","tpahere","tpaaccept","tpadeny","tpacancel")) {
@@ -219,14 +252,24 @@ public final class NameLinkGameTests {
                 check(h,EntityArgument.getPlayer(context,"target").getUUID().equals(receiver.player.getUUID()),root+" resolved wrong UUID");
                 check(h,suggestions(root+" ",initiator.source(false)).contains(alias),root+" suggestions missing alias");
             }
-            execute("tpa "+alias,initiator.source(false));execute("tpadeny "+senderAlias,receiver.source(false));
-            execute("tpahere "+alias,initiator.source(false));execute("tpacancel "+alias,initiator.source(false));
-            execute("tpa "+alias,initiator.source(false));execute("tpaaccept "+senderAlias,receiver.source(false));
-            execute("tpaaccept",receiver.source(false));execute("tpadeny",receiver.source(false));execute("tpacancel",initiator.source(false));
+            Object blossom=FabricLoader.getInstance().getEntrypoints("main",net.fabricmc.api.ModInitializer.class).stream().filter(e->e.getClass().getName().equals("dev.codedsakura.blossom.tpa.BlossomTpa")).findFirst().orElseThrow();
+            var requestsField=blossom.getClass().getDeclaredField("activeTpas");requestsField.setAccessible(true);
+            var requests=(List<?>)requestsField.get(blossom);int initial=requests.size();
+            execute("tpa "+alias,initiator.source(false));check(h,requests.size()==initial+1,"Alias did not create actual request");
+            Object request=requests.getLast();var receiverField=request.getClass().getDeclaredField("receiver");receiverField.setAccessible(true);
+            check(h,((ServerPlayer)receiverField.get(request)).getUUID().equals(receiver.player.getUUID()),"Request receiver UUID changed");
+            execute("tpa "+receiver.player.getGameProfile().name(),initiator.source(false));check(h,requests.size()==initial+1,"Alias bypassed duplicate-request policy");
+            execute("tpadeny "+senderAlias,receiver.source(false));check(h,requests.size()==initial,"Targeted denial failed");
+            execute("tpahere "+alias,initiator.source(false));check(h,requests.size()==initial+1,"Tpahere request missing");
+            execute("tpacancel "+alias,initiator.source(false));check(h,requests.size()==initial,"Targeted cancellation failed");
+            execute("tpa "+alias,initiator.source(false));execute("tpaaccept "+senderAlias,receiver.source(false));check(h,requests.size()==initial,"Targeted acceptance failed");
+            execute("tpa "+alias,initiator.source(false));execute("tpadeny",receiver.source(false));check(h,requests.size()==initial,"Optional denial failed");
+            execute("tpa "+alias,initiator.source(false));execute("tpacancel",initiator.source(false));check(h,requests.size()==initial,"Optional cancellation failed");
+            execute("tpa "+alias,initiator.source(false));execute("tpaaccept",receiver.source(false));check(h,requests.size()==initial,"Optional acceptance failed");
         } h.succeed();
     }
     @GameTest public void quickLockTrustUsesStableUuid(GameTestHelper h) throws Exception {
-        if(!FabricLoader.getInstance().isModLoaded("quicklock")) { h.succeed(); return; }
+        if(!FabricLoader.getInstance().isModLoaded("quicklock")) { NameLink.LOGGER.info("QuickLock integration assertions not exercised: optional mod absent"); h.succeed(); return; }
         try(Scope s=new Scope();Client owner=new Client(h);Client friend=new Client(h)) {
             var n=NameLink.active;String alias=unique("Nick");n.assign(friend.player.getUUID(),alias);
             Object protection=Class.forName("io.github.josephkelly.quicklock.Protection").getField("active").get(null);
@@ -259,7 +302,16 @@ public final class NameLinkGameTests {
             n.server.getPlayerList().getPlayersByUUID().remove(friend.player.getUUID());n.server.getPlayerList().getPlayers().remove(friend.player);
             execute("trust-all "+alias,owner.source(false));
             check(h,trust.get(owner.player.getUUID()).contains(friend.player.getUUID()),"QuickLock offline alias did not use UUID");
-            trust.remove(owner.player.getUUID());names.remove(owner.player.getUUID());names.remove(friend.player.getUUID());
+            trust.get(owner.player.getUUID()).remove(friend.player.getUUID());
+            UUID conflicting=UUID.randomUUID();names.put(conflicting,friend.player.getGameProfile().name());
+            try { execute("trust-all "+alias,owner.source(false));throw new AssertionError("Ambiguous QuickLock cache accepted alias"); }
+            catch(com.mojang.brigadier.exceptions.CommandSyntaxException expected) {}
+            check(h,!trust.get(owner.player.getUUID()).contains(friend.player.getUUID()) && !trust.get(owner.player.getUUID()).contains(conflicting),"Rejected alias changed trust");
+            names.remove(conflicting);
+            String reserved=unique("Cache");n.assign(owner.player.getUUID(),reserved);names.put(conflicting,reserved);
+            io.github.josephkelly.namelink.compat.QuickLockBridge.importIdentities(n);
+            check(h,n.nickname(owner.player.getUUID())==null && conflicting.equals(n.resolve(reserved)),"QuickLock-only username did not reserve identity");
+            trust.remove(owner.player.getUUID());names.remove(owner.player.getUUID());names.remove(friend.player.getUUID());names.remove(conflicting);
         } h.succeed();
     }
 }

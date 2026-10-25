@@ -23,7 +23,7 @@ public abstract class GameProfileArgumentMixin {
             reader.setCursor(end);
             cir.setReturnValue(source -> {
                 var n=NameLink.active;
-                UUID id=n!=null && n.config.vanillaPlayerArguments() ? n.state.alias(token) : null;
+                UUID id=n!=null && source.getServer()==n.server && n.config.vanillaPlayerArguments() ? n.resolve(token) : null;
                 if(id==null) throw GameProfileArgument.ERROR_UNKNOWN_PLAYER.create();
                 var i=n.state.identity(id);
                 return List.of(new NameAndId(id,i.username()));

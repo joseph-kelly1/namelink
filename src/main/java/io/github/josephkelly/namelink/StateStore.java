@@ -17,18 +17,20 @@ public final class StateStore {
         if (!Files.exists(path)) return new NicknameState();
         try {
             if (Files.size(path) > 8 * 1024 * 1024) throw new IllegalArgumentException("NameLink storage exceeds 8 MiB limit.");
-            JsonObject root = JsonParser.parseString(Files.readString(path)).getAsJsonObject();
-            if (!root.get("version").getAsString().equals("1")) throw new IllegalArgumentException("Unsupported NameLink schema version.");
+            JsonObject root = ValidatedJson.object(Files.readString(path));
+            if (!root.keySet().equals(Set.of("version","identities","reservations"))) throw new IllegalArgumentException("Unknown or missing storage fields.");
+            if (!root.get("version").isJsonPrimitive() || !root.get("version").getAsJsonPrimitive().isNumber() || !root.get("version").getAsString().equals("1")) throw new IllegalArgumentException("Unsupported NameLink schema version.");
             List<NicknameState.Identity> records = new ArrayList<>();
             for (JsonElement element : root.getAsJsonArray("identities")) {
                 JsonObject o = element.getAsJsonObject();
+                if (!o.keySet().equals(o.has("nickname") ? Set.of("uuid","username","usernames","nickname") : Set.of("uuid","username","usernames"))) throw new IllegalArgumentException("Unknown or missing identity fields.");
                 Set<String> names = new LinkedHashSet<>();
-                for (var n : o.getAsJsonArray("usernames")) names.add(n.getAsString());
-                records.add(new NicknameState.Identity(uuid(o.get("uuid").getAsString()), o.get("username").getAsString(), names,
-                        o.has("nickname") ? o.get("nickname").getAsString() : null));
+                for (var n : o.getAsJsonArray("usernames")) names.add(ValidatedJson.string(n));
+                records.add(new NicknameState.Identity(uuid(ValidatedJson.string(o.get("uuid"))), ValidatedJson.string(o.get("username")), names,
+                        o.has("nickname") ? ValidatedJson.string(o.get("nickname")) : null));
             }
             Map<String, UUID> reservations = new HashMap<>();
-            for (var e : root.getAsJsonObject("reservations").entrySet()) reservations.put(e.getKey(), uuid(e.getValue().getAsString()));
+            for (var e : root.getAsJsonObject("reservations").entrySet()) reservations.put(e.getKey(), uuid(ValidatedJson.string(e.getValue())));
             return NicknameState.restore(records, reservations);
         } catch (RuntimeException e) { throw new IOException("Invalid NameLink data at " + path + "; restore a backup or repair it before startup.", e); }
     }

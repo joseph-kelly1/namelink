@@ -11,7 +11,7 @@ public record NameLinkConfig(boolean chat, boolean tab, boolean overhead, boolea
             Files.writeString(path, "{\n  \"chat\": true,\n  \"tab\": true,\n  \"overhead\": true,\n  \"vanillaPlayerArguments\": true,\n  \"quickLock\": true\n}\n");
         }
         try {
-            var o = JsonParser.parseString(Files.readString(path)).getAsJsonObject();
+            var o = ValidatedJson.object(Files.readString(path));
             for (var e : o.entrySet()) if (!java.util.Set.of("chat", "tab", "overhead", "vanillaPlayerArguments", "quickLock").contains(e.getKey())
                     || !e.getValue().isJsonPrimitive() || !e.getValue().getAsJsonPrimitive().isBoolean())
                 throw new IllegalArgumentException("Unknown option or non-boolean: " + e.getKey());

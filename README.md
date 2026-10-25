@@ -56,7 +56,8 @@ nickname, or a historical reservation held by another UUID. Exact repeat assignm
 returns an informative no-op; changing capitalization updates display.
 
 The boundary is online players, previously observed joins, available whitelist
-identities, and identities already in the server profile cache. NameLink makes
+identities, identities already in the server profile cache, and the supported QuickLock cache
+when its adapter is enabled. NameLink makes
 **no external account lookup**. This cannot guarantee worldwide uniqueness.
 
 Every observed username remains reserved permanently. Old usernames are **not
@@ -161,7 +162,7 @@ Assignments and history live in **`<level-name>/data/namelink.json`**, schema 1.
 UUIDs are canonical keys. Small identity updates are written only when changed;
 assign/clear writes succeed before publishing a new assignment. Temporary writes
 are flushed and atomically replaced on the same filesystem. Atomic-move failure
-is an error; there is no non-atomic fallback. Malformed, oversized, or incompatible
+is an error; there is no non-atomic fallback. Malformed, duplicate-key, incorrectly typed, oversized, or incompatible
 storage stops startup without overwriting the source. Detected runtime identity
 save failure is fatal; assignment save failure leaves the prior assignment intact.
 Back up the whole stopped world and this file together. Atomic replacement is not

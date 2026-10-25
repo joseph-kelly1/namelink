@@ -7,6 +7,17 @@ import java.util.*;
 /** Only called by a version-gated optional mixin. No QuickLock class in a linked descriptor. */
 public final class QuickLockBridge {
     private QuickLockBridge() {}
+    public static void importIdentities(NameLink n) {
+        var mod=net.fabricmc.loader.api.FabricLoader.getInstance().getModContainer("quicklock");
+        if(!n.config.quickLock() || mod.isEmpty() || !mod.get().getMetadata().getVersion().getFriendlyString().equals("0.1.0-alpha.1")) return;
+        try {
+            Object protection=Class.forName("io.github.josephkelly.quicklock.Protection").getField("active").get(null);
+            if(protection==null) throw new ReflectiveOperationException("QuickLock not ready");
+            Object state=protection.getClass().getField("state").get(protection);
+            @SuppressWarnings("unchecked") Map<UUID,String> names=(Map<UUID,String>)state.getClass().getField("names").get(state);
+            for(var e:new HashMap<>(names).entrySet()) n.observe(new net.minecraft.server.players.NameAndId(e.getKey(),e.getValue()),false);
+        } catch(ReflectiveOperationException e) { throw new IllegalStateException("Cannot safely import known QuickLock identities",e); }
+    }
     public static String target(String token) throws CommandSyntaxException {
         var n=NameLink.active;
         if(n==null || !n.config.quickLock()) return token;
